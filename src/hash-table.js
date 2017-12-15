@@ -1,12 +1,16 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable class-methods-use-this */
 const { LimitedArray, getIndexBelowMax } = require('./hash-table-helpers');
+const { LinkedList } = require('./linked-list');
 
 class HashTable {
   constructor(limit = 8) {
     this.limit = limit;
     this.storage = new LimitedArray(this.limit);
     // Do not modify anything inside of the constructor
+  }
+  getStorage() {
+    return this.storage;
   }
 
   resize() {
@@ -16,7 +20,7 @@ class HashTable {
     oldStorage.each((bucket) => {
       if (!bucket) return;
       bucket.forEach((pair) => {
-        this.insert(pair[0], pair[1]);
+        this.insert(pair.value[0], pair.value[1]);
       });
     });
   }
@@ -36,10 +40,9 @@ class HashTable {
   insert(key, value) {
     if (this.capacityIsFull()) this.resize();
     const index = getIndexBelowMax(key.toString(), this.limit);
-    let bucket = this.storage.get(index) || [];
-
-    bucket = bucket.filter(item => item[0] !== key);
-    bucket.push([key, value]);
+    const bucket = this.storage.get(index) || new LinkedList();
+    this.remove(key);
+    bucket.addToTail([key, value]);
     this.storage.set(index, bucket);
   }
   // Removes the key, value pair from the hash table
@@ -47,11 +50,19 @@ class HashTable {
   // Remove the key, value pair from the bucket
   remove(key) {
     const index = getIndexBelowMax(key.toString(), this.limit);
-    let bucket = this.storage.get(index);
+    const bucket = this.storage.get(index);
 
     if (bucket) {
-      bucket = bucket.filter(item => item[0] !== key);
-      this.storage.set(index, bucket);
+      const older = this.storage;
+      const newer = new LimitedArray(this.limit);
+      older.each((oldBucket) => {
+        if (!oldBucket) return;
+        const newBucket = new LinkedList();
+        oldBucket.forEach((node) => {
+          if (node.value[0] !== key) newBucket.addToTail(node);
+        });
+      });
+      this.storage = newer;
     }
   }
   // Fetches the value associated with the given key from the hash table
@@ -62,10 +73,11 @@ class HashTable {
     const bucket = this.storage.get(index);
     let retrieved;
     if (bucket) {
-      retrieved = bucket.filter(item => item[0] === key)[0];
+      bucket.forEach((node) => {
+        if (node.value[0] === key) retrieved = node.value[1];
+      });
     }
-
-    return retrieved ? retrieved[1] : undefined;
+    return retrieved;
   }
 }
 
